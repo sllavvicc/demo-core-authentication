@@ -1,0 +1,113 @@
+version: '3.5'
+
+services:
+  core-authentications-application-dev:
+    image: core-authentications-application:dev
+    container_name: core-authentications-application-dev
+    restart: unless-stopped
+    build:
+      context: ../../..
+      dockerfile: apps/core-authentications/devops/Dockerfile
+    depends_on:
+      - core-authentications-database-dev
+      - core-authentications-cache-dev
+    links:
+      - core-authentications-database-dev
+      - core-authentications-cache-dev
+    networks:
+      - core-authentications-dev
+      - zozoboom-dev
+    ports:
+      - 127.0.0.1:3002:3000
+    environment:
+      HTTP_PORT: 3000
+      HTTP_CORS_ORIGIN: 'https://admin-dev.zozoboom.com,https://dev.zozoboom.com'
+      RPC_SERVERS: 'nats://zozoboom-rpc-gateway-dev:4222'
+      RPC_QUEUE: 'core-authentications'
+      DB_HOST: 'core-authentications-database-dev'
+      DB_PORT: 27017
+      DB_NAME: ${MONGO_DB_DATABASE}
+      DB_USERNAME: ${MONGO_DB_USERNAME}
+      DB_PASSWORD: ${MONGO_DB_PASSWORD}
+      CACHE_HOST: 'core-authentications-cache-dev'
+      CACHE_PORT: 6379
+      CACHE_TTL: 900
+      SECURITY_EMAIL_ADMIN_APPROVE: 'sllavvicc@gmail.com'
+      SECURITY_FORGOT_TOKEN_SALT: ${SECURITY_FORGOT_TOKEN_SALT}
+      SECURITY_ACCESS_TOKEN_SALT: ${SECURITY_ACCESS_TOKEN_SALT}
+      SECURITY_REFRESH_TOKEN_SALT: ${SECURITY_REFRESH_TOKEN_SALT}
+
+  core-authentications-database-dev:
+    image: mongo:latest
+    container_name: core-authentications-database-dev
+    restart: unless-stopped
+    command: mongod
+    ports:
+      - 3003:27017
+    networks:
+      - core-authentications-dev
+      - core-authentications-statistics-dev
+    volumes:
+      - ./docker-entrypoint-initdb:/docker-entrypoint-initdb.d
+      - database-data:/data/db
+      - database-config:/data/configdb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_DB_DATABASE: ${MONGO_DB_DATABASE}
+      MONGO_DB_USERNAME: ${MONGO_DB_USERNAME}
+      MONGO_DB_PASSWORD: ${MONGO_DB_PASSWORD}
+
+  core-authentications-cache-dev:
+    image: redis:latest
+    container_name: core-authentications-cache-dev
+    restart: unless-stopped
+    networks:
+      - core-authentications-dev
+    volumes:
+      - redis:/var/lib/redis
+      - redis-data:/data
+      - redis-config:/usr/local/etc/redis/redis.conf
+
+volumes:
+  database-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/www/docker-storage/core-authentications-dev/database-data
+  database-config:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/www/docker-storage/core-authentications-dev/database-config
+  redis:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/www/docker-storage/core-authentications-dev/redis
+  redis-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/www/docker-storage/core-authentications-dev/redis-data
+  redis-config:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/www/docker-storage/core-authentications-dev/redis-config
+
+networks:
+  core-authentications-dev:
+    name: core-authentications-dev
+    external: true
+  core-authentications-statistics-dev:
+    name: core-authentications-statistics-dev
+    external: true
+  zozoboom-dev:
+    name: zozoboom-dev
+    external: true
